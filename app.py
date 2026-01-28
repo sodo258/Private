@@ -6,12 +6,15 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# ================= 填入你的鑰匙 =================
-# 建議：為了安全，之後我們會教你用「環境變數」藏起來
-# 但現在為了先跑通，你可以先直接貼上
-line_bot_api = LineBotApi('你的長長那一串_Channel_Access_Token')
-handler = WebhookHandler('你的短短那一串_Channel_Secret')
-# ===============================================
+# =========== 暴力測試區：直接填入你的鑰匙 ===========
+
+# 你的 Token (長的那串)
+line_bot_api = LineBotApi('X8GnvO9JUVfypVoeIqgrSP+ChOScdKKloZe0wwfnJdL8C0LgHFqLSsB1TMYacx7xzFpL/R9lLA7LkARFuK79y6/ofObPJiqFpJj94C1Knk1aoERNdHh+XVvGnV2scudJ+D1UeU/bZOCeAxe7/iH6DgdB04t89/1O/w1cDnyilFU=')
+
+# 你的 Secret (短的那串)
+handler = WebhookHandler('783cc9d3091b87f45298bc67e383b9ea')
+
+# =================================================
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -20,20 +23,21 @@ def callback():
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        # 如果這裡報錯，代表簽名不對
+        print("Invalid Signature Error!")
         abort(400)
     return 'OK'
 
 @app.route("/")
 def home():
-    return "Friday is Online!"
+    return "Friday is hardcoded!"
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    user_msg = event.message.text
-    # 鸚鵡學舌功能
+    msg = event.message.text
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text=f"Friday 收到：{user_msg}")
+        TextSendMessage(text=f"Friday 收到：{msg}")
     )
 
 if __name__ == "__main__":
