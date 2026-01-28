@@ -10,25 +10,29 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 app = Flask(__name__)
 
 # ================= 設定區 =================
-# 1. 你的 LINE 鑰匙 (建議之後也搬到 Render 環境變數，目前先保留你的暴力法或用變數)
-line_bot_api = LineBotApi(os.environ.get('CHANNEL_ACCESS_TOKEN')) 
-handler = WebhookHandler(os.environ.get('CHANNEL_SECRET'))
 
-# 2. Google 試算表設定
-SPREADSHEET_ID = '1G57LlXcUnbGTAPQcg-dHlX2_hrO19a9WTEXRWvLee1s'  # <--- 請記得改這裡！！！
+# 1. 你的 LINE 鑰匙 (阿華專用暴力填入版，確保不會錯)
+line_bot_api = LineBotApi('X8GnvO9JUVfypVoeIqgrSP+ChOScdKKloZe0wwfnJdL8C0LgHFqLSsB1TMYacx7xzFpL/R9lLA7LkARFuK79y6/ofObPJiqFpJj94C1Knk1aoERNdHh+XVvGnV2scudJ+D1UeU/bZOCeAxe7/iH6DgdB04t89/1O/w1cDnyilFU=')
+handler = WebhookHandler('783cc9d3091b87f45298bc67e383b9ea')
+
+# 2. Google 試算表設定 (你剛剛填的 ID)
+SPREADSHEET_ID = '1G57LlXcUnbGTAPQcg-dHlX2_hrO19a9WTEXRWvLee1s'
 
 # 設定 Google 權限範圍
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
 # 嘗試連線到 Google Sheets
 try:
-    # 從 Render 環境變數讀取 JSON 內容
+    # 這裡一定要讀取 Render 環境變數，不然程式碼會太亂
     json_creds = os.environ.get('GOOGLE_JSON')
-    creds_dict = json.loads(json_creds)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-    print("Google Sheet 連線成功！")
+    if not json_creds:
+        print("❌ 錯誤：找不到 GOOGLE_JSON 環境變數！")
+    else:
+        creds_dict = json.loads(json_creds)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
+        print("Google Sheet 連線成功！")
 except Exception as e:
     print(f"Google Sheet 連線失敗: {e}")
 
@@ -50,33 +54,24 @@ def home():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    msg = event.message.text.strip() # 去除前後空白
+    msg = event.message.text.strip()
     
-    # 判斷指令：如果是 # 開頭，或是直接叫 Friday
-    # 範例輸入： #阿華 300
-    
+    # 指令觸發檢查
     if msg.startswith('#') or msg.lower().startswith('friday'):
-        
-        # 1. 處理字串，把前面的符號拿掉
         content = msg.replace('#', '').replace('Friday', '').replace('friday', '').strip()
-        
-        # 2. 切割字串，預期會拿到 [名字, 分數]
-        # 例如 "阿華 300" ->parts[0]=阿華, parts[1]=300
         parts = content.split()
         
         if len(parts) >= 2:
             name = parts[0]
             score = parts[1]
-            
-            # 3. 寫入 Google 試算表
             try:
-                # 寫入一行：[名字, 分數] (你可以自己加日期)
+                # 寫入試算表
                 sheet.append_row([name, score])
                 reply_text = f"✅ 紀錄成功！\n{name}: {score}"
             except Exception as e:
-                reply_text = f"❌ 寫入失敗，請檢查權限或 ID。\n錯誤：{str(e)}"
+                reply_text = f"❌ 寫入失敗！\n可能是 GOOGLE_JSON 沒設定好，或是機器人沒被加入試算表共用。\n錯誤訊息：{e}"
         else:
-            reply_text = "❓ 格式看不懂喔。\n請輸入：#名字 分數\n例如：#阿華 300"
+            reply_text = "❓ 格式錯囉！\n請輸入：#名字 分數\n例如：#阿華 300"
             
         line_bot_api.reply_message(
             event.reply_token,
